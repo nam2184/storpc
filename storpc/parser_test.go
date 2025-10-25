@@ -1,6 +1,7 @@
 package storpc
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,7 +11,26 @@ import (
 )
 
 func createTestFileDescriptorSet(t *testing.T) string {
-	// define a simple message type
+	// Define a nested message: Asset
+	assetMsg := &descriptorpb.DescriptorProto{
+		Name: proto.String("Asset"),
+		Field: []*descriptorpb.FieldDescriptorProto{
+			{
+				Name:   proto.String("id"),
+				Number: proto.Int32(1),
+				Label:  descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
+				Type:   descriptorpb.FieldDescriptorProto_TYPE_INT32.Enum(),
+			},
+			{
+				Name:   proto.String("name"),
+				Number: proto.Int32(2),
+				Label:  descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
+				Type:   descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum(),
+			},
+		},
+	}
+
+	// Define the outer message: LoginRequest
 	msg := &descriptorpb.DescriptorProto{
 		Name: proto.String("LoginRequest"),
 		Field: []*descriptorpb.FieldDescriptorProto{
@@ -26,20 +46,30 @@ func createTestFileDescriptorSet(t *testing.T) string {
 				Label:  descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
 				Type:   descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum(),
 			},
+			{
+				Name:     proto.String("asset"),
+				Number:   proto.Int32(3),
+				Label:    descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
+				Type:     descriptorpb.FieldDescriptorProto_TYPE_MESSAGE.Enum(),
+				TypeName: proto.String("Asset"), // reference the nested type
+			},
 		},
+		NestedType: []*descriptorpb.DescriptorProto{assetMsg}, // include nested message
 	}
 
+	// Define the service
 	svc := &descriptorpb.ServiceDescriptorProto{
 		Name: proto.String("AuthService"),
 		Method: []*descriptorpb.MethodDescriptorProto{
 			{
 				Name:       proto.String("Login"),
 				InputType:  proto.String(".testpkg.LoginRequest"),
-				OutputType: proto.String(".testpkg.LoginRequest"), // just reuse same type for simplicity
+				OutputType: proto.String(".testpkg.LoginRequest"), // reuse same type
 			},
 		},
 	}
 
+	// Define the file descriptor
 	fd := &descriptorpb.FileDescriptorProto{
 		Name:        proto.String("auth.proto"),
 		Package:     proto.String("testpkg"),
@@ -51,8 +81,10 @@ func createTestFileDescriptorSet(t *testing.T) string {
 		File: []*descriptorpb.FileDescriptorProto{fd},
 	}
 
+	// Write to temporary file
 	tmpDir := t.TempDir()
 	file := filepath.Join(tmpDir, "fds.bin")
+
 	data, err := proto.Marshal(set)
 	if err != nil {
 		t.Fatalf("failed to marshal descriptor set: %v", err)
@@ -70,10 +102,12 @@ func TestParseWithRealMessage(t *testing.T) {
 	opts := &ProtoParserOptions{Filepath: file}
 	parser := NewProtoParser(opts)
 
-	if err := parser.Parse(); err != nil {
+	gen, err := parser.Parse()
+	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
-
+	fmt.Println(*gen.Body)
+	fmt.Println(*gen.Header)
 	// access the message descriptor
 	fd := parser.fileDesc
 	msgDesc := fd.Messages().Get(0) // LoginRequest
@@ -109,7 +143,7 @@ func TestFilterServices_Streaming(t *testing.T) {
 	opts := &ProtoParserOptions{Filepath: tmpFile}
 	parser := NewProtoParser(opts)
 
-	err := parser.Parse()
+	_, err := parser.Parse()
 	if err == nil {
 		t.Fatalf("expected error for streaming RPC, got nil")
 	}

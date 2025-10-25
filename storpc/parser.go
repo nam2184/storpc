@@ -51,21 +51,21 @@ func NewProtoParser(options *ProtoParserOptions) *ProtoParser {
 	return parser
 }
 
-func (p *ProtoParser) Parse() error {
+func (p *ProtoParser) Parse() (*GenIR, error) {
 	p.logger.Debug(fmt.Sprintf("parsing filepath : %v", p.options.Filepath))
 	data, err := os.ReadFile(p.options.Filepath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	set := &descriptorpb.FileDescriptorSet{}
 	if err := proto.Unmarshal(data, set); err != nil {
-		return err
+		return nil, err
 	}
 
 	fd, err := protodesc.NewFile(set.File[0], nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	p.fileDesc = fd
@@ -76,10 +76,72 @@ func (p *ProtoParser) Parse() error {
 
 	err = p.filterServices()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	gen := NewGenIR(p.ParseHeader(), p.ParseBody())
+
+	return gen, nil
+}
+
+func (p *ProtoParser) ParseHeader() *GenHeader {
+	messages := p.fileDesc.Messages()
+	enums := p.fileDesc.Messages()
+
+	return NewGenHeader(uint32(messages.Len()), uint32(enums.Len()))
+}
+
+func (p *ProtoParser) ParseBody() *GenBody {
+	filed := p.fileDesc
+	body := NewGenBody()
+
+	if filed.Package().IsValid() {
+		body.Group = string(filed.Package())
+	}
+
+	messages := filed.Messages()
+
+	for i := 0; i < messages.Len(); i++ {
+		message := messages.Get(i)
+		body.Messages = append(body.Messages, p.ParseMessage(message))
+	}
+
+	return body
+}
+
+func (p *ProtoParser) ParseMessage(message protoreflect.MessageDescriptor) Message {
+	serialisedMessage := Message{
+		Name: string(message.FullName()),
+	}
+
+	fields := message.Fields()
+	for j := 0; j < fields.Len(); j++ {
+		field := fields.Get(j)
+
+		var typeName string
+		kind := field.Kind()
+
+		var nestedMessage Message
+		switch kind {
+		case protoreflect.MessageKind, protoreflect.GroupKind:
+			typeName = string(field.Message().FullName())
+			nestedMessage = p.ParseMessage(field.Message())
+		case protoreflect.EnumKind:
+			typeName = string(field.Enum().FullName())
+		default:
+			typeName = kind.String()
+		}
+
+		serialisedField := Field{
+			Type:   typeName,
+			Name:   field.TextName(),
+			Number: int32(field.Number()),
+			Nested: &nestedMessage,
+		}
+
+		serialisedMessage.Fields = append(serialisedMessage.Fields, serialisedField)
+	}
+	return serialisedMessage
 }
 
 func (p *ProtoParser) filterServices() error {

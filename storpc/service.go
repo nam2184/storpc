@@ -14,7 +14,7 @@ type RpcMethod struct {
 	Output *dynamicpb.Message
 }
 
-func (m RpcMethod) Operate(input *dynamicpb.Message) SerialisedMethodIR {
+func (m RpcMethod) Operate(input *dynamicpb.Message) MethodIR {
 	var operation uint8
 	if m.md.Input().FullName() == "google.protobuf.Empty" {
 		operation = OpGet
@@ -30,10 +30,10 @@ func (m RpcMethod) Operate(input *dynamicpb.Message) SerialisedMethodIR {
 		payload[string(f.Name())] = val.Interface() // convert to Go type
 	}
 
-	header := NewSerialisedMethodHeader(operation)
-	body := NewSerialisedMethodBody(string(input.Descriptor().FullName()), payload)
+	header := NewMethodHeader(operation)
+	body := NewMethodBody(string(input.Descriptor().FullName()), payload)
 
-	serialiasedMethod := SerialisedMethodIR{
+	serialiasedMethod := MethodIR{
 		Header: header,
 		Body:   body,
 	}
