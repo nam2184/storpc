@@ -19,7 +19,13 @@ const (
 
 type BTree interface {
 	Insert(key uint32) error
-	Search(id uint32) PageNode
+	Delete(key uint32) error
+	Search(key uint32) PageNode
+	Traverse(fn func(PageNode))
+	Balance() error
+	Root() PageNode
+	Height() int
+	Size() int
 }
 
 type Pager interface {

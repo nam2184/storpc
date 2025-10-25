@@ -34,6 +34,12 @@ func NewMemoryBTree(t int) *MemoryBTree {
 	}
 }
 
+func (bt *MemoryBTree) Root() types.PageNode {
+	fmt.Println("Root called on MemoryBTree")
+	// TODO: implement split/insert logic
+	return bt.root
+}
+
 func (bt *MemoryBTree) Insert(key uint32) {
 	fmt.Println("Insert called on MemoryBTree with key:", key)
 	// TODO: implement split/insert logic
@@ -41,9 +47,33 @@ func (bt *MemoryBTree) Insert(key uint32) {
 	bt.size++
 }
 
+func (bt *MemoryBTree) Delete(key uint32) {
+	fmt.Println("Delete called on MemoryBTree with key:", key)
+	// TODO: implement split/insert logic
+
+	bt.size--
+}
+
 func (bt *MemoryBTree) Search(key uint32) bool {
 	fmt.Println("Search called on MemoryBTree for key:", key)
 	return false
+}
+
+func (bt *MemoryBTree) Traverse(fn func(types.PageNode)) {
+	fmt.Println("Traverse called")
+}
+
+func (bt *MemoryBTree) Balance() error {
+	fmt.Println("Balance called")
+	return nil
+}
+
+func (bt *MemoryBTree) Height() int {
+	return 0
+}
+
+func (bt *MemoryBTree) Size() int {
+	return 0
 }
 
 type DiskBTree struct {
@@ -70,15 +100,45 @@ func NewDiskBTree(t int) *DiskBTree {
 	}
 }
 
+func (bt *DiskBTree) Root() types.PageNode {
+	fmt.Println("Root called on DiskyBTree")
+	// TODO: implement split/insert logic
+	return bt.root
+}
+
 func (bt *DiskBTree) Insert(key uint32) {
 	fmt.Println("Insert called on DiskBTree with key:", key)
 	// TODO: implement split/insert logic
 	bt.size++
 }
 
+func (bt *DiskBTree) Delete(key uint32) {
+	fmt.Println("Delete called on DiskBTree with key:", key)
+	// TODO: implement split/insert logic
+
+	bt.size--
+}
+
 func (bt *DiskBTree) Search(key uint32) bool {
 	fmt.Println("Search called on DiskBTree for key:", key)
 	return false
+}
+
+func (bt *DiskBTree) Traverse(fn func(types.PageNode)) {
+	fmt.Println("Traverse called")
+}
+
+func (bt *DiskBTree) Balance() error {
+	fmt.Println("Balance called")
+	return nil
+}
+
+func (bt *DiskBTree) Height() int {
+	return 0
+}
+
+func (bt *DiskBTree) Size() int {
+	return 0
 }
 
 // ------------------------
