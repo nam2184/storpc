@@ -18,6 +18,8 @@ const (
 )
 
 type BTree interface {
+	Insert(key uint32) error
+	Search(id uint32) PageNode
 }
 
 type Pager interface {
