@@ -37,7 +37,6 @@ type Pager interface {
 
 type PageNode interface {
 	Header() PageHeader
-	Content() PageContent
 	ID() PageID
 	Size() uint8
 	Write() error

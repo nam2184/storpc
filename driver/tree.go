@@ -12,37 +12,34 @@ import (
 
 type MemoryBTree struct {
 	root  types.PageNode // root node
-	t     int            // minimum degree
+	m     int            // max keys
 	size  int            // total number of keys
 	pager *MemoryPager
 }
 
-func NewMemoryBTree(t int) *MemoryBTree {
+func NewMemoryBTree(m int) *MemoryBTree {
 	pager := NewMemoryPager()
 	rootID := pager.AllocatePage()
 	root := &MemoryPage{
 		id:   rootID,
-		keys: []uint32{},
+		keys: []types.PageContent{},
 		leaf: true,
 	}
 	pager.WritePage(root)
 	return &MemoryBTree{
 		root:  root,
-		t:     t,
+		m:     m,
 		size:  0,
 		pager: pager,
 	}
 }
 
 func (bt *MemoryBTree) Root() types.PageNode {
-	fmt.Println("Root called on MemoryBTree")
-	// TODO: implement split/insert logic
 	return bt.root
 }
 
 func (bt *MemoryBTree) Insert(key uint32) {
 	fmt.Println("Insert called on MemoryBTree with key:", key)
-	// TODO: implement split/insert logic
 
 	bt.size++
 }
@@ -77,24 +74,24 @@ func (bt *MemoryBTree) Size() int {
 }
 
 type DiskBTree struct {
-	root  types.PageNode
-	t     int
+	root  *DiskPage
+	m     int
 	size  int
 	pager *DiskPager
 }
 
-func NewDiskBTree(t int) *DiskBTree {
+func NewDiskBTree(m int) *DiskBTree {
 	pager := NewDiskPager()
 	rootID := pager.AllocatePage()
 	root := &DiskPage{
 		id:   rootID,
-		keys: []uint32{},
+		keys: []types.PageContent{},
 		leaf: true,
 	}
 	pager.WritePage(root)
 	return &DiskBTree{
 		root:  root,
-		t:     t,
+		m:     m,
 		size:  0,
 		pager: pager,
 	}
@@ -106,13 +103,33 @@ func (bt *DiskBTree) Root() types.PageNode {
 	return bt.root
 }
 
-func (bt *DiskBTree) Insert(key uint32) {
+func (bt *DiskBTree) Insert(key types.PageContent) (types.PageContent, error) {
 	fmt.Println("Insert called on DiskBTree with key:", key)
-	// TODO: implement split/insert logic
-	bt.size++
+	if key == nil {
+		return nil, fmt.Errorf("no key found")
+	}
+	if bt.root == nil {
+		bt.root = NewDiskPageNode()
+		bt.root.keys = append(bt.root.keys, key)
+		bt.size++
+		return nil, nil
+	} else {
+		if len(bt.root.keys) >= bt.maxKeys() {
+			key2, second := bt.root.split(bt.maxKeys() / 2)
+			oldroot := bt.root
+			bt.root = NewDiskPageNode()
+			bt.root.keys = append(bt.root.keys, key2)
+			bt.root.children = append(bt.root.children, oldroot, second)
+		}
+	}
+	out := bt.root.insert(key, bt.maxKeys())
+	if out == nil {
+		bt.size++
+	}
+	return out, nil
 }
 
-func (bt *DiskBTree) Delete(key uint32) {
+func (bt *DiskBTree) Delete(key types.PageContent) {
 	fmt.Println("Delete called on DiskBTree with key:", key)
 	// TODO: implement split/insert logic
 
@@ -141,6 +158,10 @@ func (bt *DiskBTree) Size() int {
 	return 0
 }
 
+func (bt *DiskBTree) maxKeys() int {
+	return 0
+}
+
 // ------------------------
 // Page Node
 // ------------------------
@@ -148,8 +169,7 @@ func (bt *DiskBTree) Size() int {
 type MemoryPage struct {
 	id       types.PageID
 	header   types.PageHeader
-	content  types.PageContent
-	keys     []uint32
+	keys     []types.PageContent
 	children []*MemoryPage
 	leaf     bool
 }
@@ -160,10 +180,6 @@ func (p *MemoryPage) ID() types.PageID {
 
 func (p *MemoryPage) Header() types.PageHeader {
 	return p.header
-}
-
-func (p *MemoryPage) Content() types.PageContent {
-	return p.content
 }
 
 func (p *MemoryPage) Size() uint8 {
@@ -180,10 +196,29 @@ func (p *MemoryPage) Write() error {
 type DiskPage struct {
 	id       types.PageID
 	header   types.PageHeader
-	content  types.PageContent
-	keys     []uint32
+	keys     []types.PageContent
 	children []*DiskPage
 	leaf     bool
+}
+
+func NewDiskPageNode() *DiskPage {
+	return &DiskPage{}
+}
+
+func (p *DiskPage) insert(key types.PageContent, maxItems int) types.PageContent {
+	return nil
+}
+
+func (p *DiskPage) split(i int) (types.PageContent, *DiskPage) {
+	key := p.keys[i]
+	next := NewDiskPageNode()
+	next.keys = append(next.keys, p.keys[i+1:]...)
+	Truncate(&p.keys, i)
+	if len(p.children) > 0 {
+		next.children = append(next.children, p.children[i+1:]...)
+		Truncate(&p.children, i+1)
+	}
+	return key, next
 }
 
 func (p *DiskPage) ID() types.PageID {
@@ -192,10 +227,6 @@ func (p *DiskPage) ID() types.PageID {
 
 func (p *DiskPage) Header() types.PageHeader {
 	return p.header
-}
-
-func (p *DiskPage) Content() types.PageContent {
-	return p.content
 }
 
 func (p *DiskPage) Size() uint8 {

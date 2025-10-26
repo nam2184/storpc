@@ -30,27 +30,3 @@ func (h *PageHeader) Write() error {
 	fmt.Println("Writing PageHeader")
 	return nil
 }
-
-// ------------------------
-// Concrete PageContent
-// ------------------------
-
-type PageContent struct {
-	next uint8
-}
-
-func (p *PageContent) Next() uint8 {
-	return p.next
-}
-
-func (p *PageContent) Read() error {
-	// placeholder read
-	fmt.Println("Reading PageContent")
-	return nil
-}
-
-func (p *PageContent) Write() error {
-	// placeholder write
-	fmt.Println("Writing PageContent")
-	return nil
-}
